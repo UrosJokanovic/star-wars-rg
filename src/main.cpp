@@ -1,9 +1,6 @@
-#include "imgui.h"
-#include "imgui_impl_glfw.h"
-#include "imgui_impl_opengl3.h"
-
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
+#include <stb_image.h>
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -17,21 +14,18 @@
 #include <iostream>
 
 void framebuffer_size_callback(GLFWwindow *window, int width, int height);
-
 void mouse_callback(GLFWwindow *window, double xpos, double ypos);
-
 void scroll_callback(GLFWwindow *window, double xoffset, double yoffset);
-
 void processInput(GLFWwindow *window);
-
 unsigned int loadCubemap(vector<std::string> faces);
+unsigned int loadTexture(char const * path);
 
 // settings
 const unsigned int SCR_WIDTH = 1920;
 const unsigned int SCR_HEIGHT = 1080;
 
 // camera
-Camera camera(glm::vec3(0.0f, 0.0f, 12.0f));
+Camera camera(glm::vec3(0.0f, 0.0f, 30.0f));
 float lastX = SCR_WIDTH / 2.0f;
 float lastY = SCR_HEIGHT / 2.0f;
 bool firstMouse = true;
@@ -40,16 +34,9 @@ bool firstMouse = true;
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
-struct PointLight {
-    glm::vec3 position;
-    glm::vec3 ambient;
-    glm::vec3 diffuse;
-    glm::vec3 specular;
-
-    float constant;
-    float linear;
-    float quadratic;
-};
+float cubeMoveLR = 0.0f;
+float cubeMoveUD = 0.0f;
+float cubeRotate = 0.0f;
 
 int main() {
     // glfw: initialize and configure
@@ -95,9 +82,56 @@ int main() {
 
     // build and compile shaders
     // -------------------------
-    Shader ourShader("resources/shaders/2.model_lighting.vs", "resources/shaders/2.model_lighting.fs");
+    Shader sceneLight("resources/shaders/scene_light.vs", "resources/shaders/scene_light.fs");
     Shader skyboxShader("resources/shaders/skybox.vs", "resources/shaders/skybox.fs");
 
+    // star wars cube coordinates
+    float vertices[] = {
+            // positions          // normals           // texture coords
+            -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f,  0.0f,
+            0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f,  0.0f,
+            0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f,  1.0f,
+            0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f,  1.0f,
+            -0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f,  1.0f,
+            -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f,  0.0f,
+
+            -0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  0.0f,  0.0f,
+            0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  1.0f,  0.0f,
+            0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  1.0f,  1.0f,
+            0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  1.0f,  1.0f,
+            -0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  0.0f,  1.0f,
+            -0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  0.0f,  0.0f,
+
+            -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  1.0f,  0.0f,
+            -0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  1.0f,  1.0f,
+            -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  0.0f,  1.0f,
+            -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  0.0f,  1.0f,
+            -0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  0.0f,  0.0f,
+            -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  1.0f,  0.0f,
+
+            0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f,  0.0f,
+            0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  1.0f,  1.0f,
+            0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  0.0f,  1.0f,
+            0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  0.0f,  1.0f,
+            0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  0.0f,  0.0f,
+            0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f,  0.0f,
+
+            -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  0.0f,  1.0f,
+            0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  1.0f,  1.0f,
+            0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  1.0f,  0.0f,
+            0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  1.0f,  0.0f,
+            -0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  0.0f,  0.0f,
+            -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  0.0f,  1.0f,
+
+            -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f,  1.0f,
+            0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  1.0f,  1.0f,
+            0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f,  0.0f,
+            0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f,  0.0f,
+            -0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  0.0f,  0.0f,
+            -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f,  1.0f
+    };
+
+    // skybox coordinates
     float skyboxVertices[] = {
             // positions
             -1.0f,  1.0f, -1.0f,
@@ -143,6 +177,8 @@ int main() {
             1.0f, -1.0f,  1.0f
     };
 
+    // model positions
+
     glm::vec3 bomberPositions[] = {
             glm::vec3( 0.0f,  0.0f,  12.0f),
             glm::vec3( 3.0f,  0.0f, 6.0f),
@@ -163,6 +199,37 @@ int main() {
             glm::vec3(-250.0f, -10.0f, -400.0f),
     };
 
+    glm::vec3 fighterPositions[] = {
+            glm::vec3(0.0f, 0.0f, 5.5f),
+            glm::vec3(5.0f, 5.0f, 8.0f),
+            glm::vec3(-4.0f, -6.0f, 10.0f),
+            glm::vec3(0.0f, 0.0f, 25.0f),
+            glm::vec3(0.0f, -3.0f, -3.0f)
+    };
+
+    glm::vec3 xWingPositions[] = {
+            glm::vec3(25.0f, -20.0f, 140.0f),
+            glm::vec3(-25.0f, -15.0f, 130.f),
+            glm::vec3(0.0f, -5.0f, 135.0f)
+    };
+
+    // star wars cube setup
+    unsigned int swcubeVAO, swcubeVBO;
+    glGenVertexArrays(1, &swcubeVAO);
+    glGenBuffers(1, &swcubeVBO);
+
+    glBindVertexArray(swcubeVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, swcubeVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
+    glEnableVertexAttribArray(2);
+
+    // skybox setup
     unsigned int skyboxVAO, skyboxVBO;
     glGenVertexArrays(1, &skyboxVAO);
     glGenBuffers(1, &skyboxVBO);
@@ -173,6 +240,9 @@ int main() {
 
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
+
+    // star wars cube texture
+    unsigned int dartVader = loadTexture(FileSystem::getPath("resources/textures/darth_vader.png").c_str());
 
     //skybox textures
     vector<std::string> spaceSkybox = {
@@ -205,17 +275,8 @@ int main() {
     Model starDestroyer("resources/objects/sw_star_destroyer/star_destroyer.obj");
     starDestroyer.SetShaderTextureNamePrefix("material.");
 
-    PointLight pointLight;
-    pointLight.position = glm::vec3(4.0f, 4.0, 0.0);
-    pointLight.ambient = glm::vec3(0.1, 0.1, 0.1);
-    pointLight.diffuse = glm::vec3(0.6, 0.6, 0.6);
-    pointLight.specular = glm::vec3(1.0, 1.0, 1.0);
-
-    pointLight.constant = 1.0f;
-    pointLight.linear = 0.09f;
-    pointLight.quadratic = 0.032f;
-
-
+    Model xWingStarFighter("resources/objects/sw_x_wing/x-wing-flyingv1.obj");
+    xWingStarFighter.SetShaderTextureNamePrefix("material.");
 
     // draw in wireframe
     //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -240,61 +301,89 @@ int main() {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // don't forget to enable shader before setting uniforms
-        ourShader.use();
-        pointLight.position = glm::vec3(4.0 * cos(currentFrame), 4.0f, 4.0 * sin(currentFrame));
-        ourShader.setVec3("pointLight.position", pointLight.position);
-        ourShader.setVec3("pointLight.ambient", pointLight.ambient);
-        ourShader.setVec3("pointLight.diffuse", pointLight.diffuse);
-        ourShader.setVec3("pointLight.specular", pointLight.specular);
-        ourShader.setFloat("pointLight.constant", pointLight.constant);
-        ourShader.setFloat("pointLight.linear", pointLight.linear);
-        ourShader.setFloat("pointLight.quadratic", pointLight.quadratic);
-        ourShader.setVec3("viewPosition", camera.Position);
-        ourShader.setFloat("material.shininess", 32.0f);
+        sceneLight.use();
+        sceneLight.setVec3("viewPos", camera.Position);
+        sceneLight.setFloat("material.shininess", 32.0f);
+
+        // directional light setup
+        sceneLight.setVec3("dirLight.direction", glm::vec3(0.0f, 150.0f, -50.0f));
+        sceneLight.setVec3("dirLight.ambient", glm::vec3(0.5f, 0.5f, 0.5f));
+        sceneLight.setVec3("dirLight.diffuse", glm::vec3(0.6f, 0.6f, 0.6f));
+        sceneLight.setVec3("dirLight.specular", glm::vec3(1.0f, 1.0f, 1.0f));
+        
+        // point light setup
+//        pointLight.position = glm::vec3(4.0 * cos(currentFrame), 4.0f, 4.0 * sin(currentFrame));
+        sceneLight.setVec3("pointLight.position", glm::vec3(0.0f, -10.0f, -20.0f));
+        sceneLight.setVec3("pointLight.ambient", glm::vec3(0.5, 0.5, 0.5));
+        sceneLight.setVec3("pointLight.diffuse", glm::vec3(0.6, 0.6, 0.6));
+        sceneLight.setVec3("pointLight.specular", glm::vec3(1.0, 1.0, 1.0));
+        sceneLight.setFloat("pointLight.constant", 1.0f);
+        sceneLight.setFloat("pointLight.linear", 0.09f);
+        sceneLight.setFloat("pointLight.quadratic", 0.032f);
+        
         // view/projection transformations
         glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom),
                                                 (float) SCR_WIDTH / (float) SCR_HEIGHT, 0.1f, 1500.0f);
         glm::mat4 view = camera.GetViewMatrix();
-        ourShader.setMat4("projection", projection);
-        ourShader.setMat4("view", view);
+        sceneLight.setMat4("projection", projection);
+        sceneLight.setMat4("view", view);
+
+        glm::mat4 model = glm::mat4(1.0f);
+        sceneLight.setMat4("model", model);
+
+        // star wars cube
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, dartVader);
+
+        glBindVertexArray(swcubeVAO);
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, glm::vec3(0.0f + cubeMoveLR, 0.0f + cubeMoveUD, -15.0f));
+        model = glm::rotate(model, glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+        model = glm::rotate(model, glm::radians(cubeRotate), glm::vec3(0.0f, 0.0f, 1.0f));
+        model = glm::scale(model, glm::vec3(2.0f));
+        sceneLight.setMat4("model", model);
+
+        glDrawArrays(GL_TRIANGLES, 0, 36);
 
         // render imperial bombers
         for (unsigned int i = 0 ; i < 11 ; i++) {
-            glm::mat4 model = glm::mat4(1.0f);
+            model = glm::mat4(1.0f);
             model = glm::translate(model,
                                    bomberPositions[i]); // translate it down so it's at the center of the scene
             model = glm::rotate(model, glm::radians(25.0f), glm::vec3(1.0f, 0.0f, 0.0f));
             model = glm::rotate(model, (float) glfwGetTime(), glm::vec3(0.0f, 0.0f, 1.0f));
-            model = glm::scale(model, glm::vec3(0.5f));    // it's a bit too big for our scene, so scale it down
-            ourShader.setMat4("model", model);
-            bomber.Draw(ourShader);
+            model = glm::scale(model, glm::vec3(0.85f));    // it's a bit too big for our scene, so scale it down
+            sceneLight.setMat4("model", model);
+            bomber.Draw(sceneLight);
         }
 
         // render millenium falcon
-        glm::mat4 model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(0.0f, -20.0f, 140.0f));
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, glm::vec3(0.0f, cos(glfwGetTime())+(-20.0f), sin(glfwGetTime())+140.0f));
         model = glm::rotate(model, (float)sin(glfwGetTime()), glm::vec3(0.0f, 0.0f, 0.5f));
         model = glm::rotate(model, glm::radians(25.0f), glm::vec3(1.0f, 0.0f, 0.0f));
         model = glm::scale(model, glm::vec3(0.025f));
-        ourShader.setMat4("model", model);
-        milleniumFalcon.Draw(ourShader);
+        sceneLight.setMat4("model", model);
+        milleniumFalcon.Draw(sceneLight);
 
         // render imperial fighter
-        model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(0.0f, 0.0f, 5.5f));
-        model = glm::rotate(model, glm::radians(-90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-        model = glm::rotate(model, glm::radians(-25.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-        model = glm::scale(model, glm::vec3(0.05f));
-        ourShader.setMat4("model", model);
-        tieFighter.Draw(ourShader);
+        for (unsigned int i = 0 ; i < 5 ; i++) {
+            model = glm::mat4(1.0f);
+            model = glm::translate(model, fighterPositions[i]);
+            model = glm::rotate(model, glm::radians(-90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+            model = glm::rotate(model, glm::radians(-25.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+            model = glm::scale(model, glm::vec3(0.05f));
+            sceneLight.setMat4("model", model);
+            tieFighter.Draw(sceneLight);
+        }
 
         // render death star
         model = glm::mat4(1.0f);
         model = glm::translate(model, glm::vec3(0.0f, 0.0f, -1300.0f));
         model = glm::rotate(model, (float)glfwGetTime()/20, glm::vec3(0.0f, 1.0f, 0.0f));
         model = glm::scale(model, glm::vec3(1.4f));
-        ourShader.setMat4("model", model);
-        deathStar.Draw(ourShader);
+        sceneLight.setMat4("model", model);
+        deathStar.Draw(sceneLight);
 
         // render star destroyer
         for (unsigned int i = 0 ; i < 3 ; i++) {
@@ -308,8 +397,18 @@ int main() {
                 model = glm::rotate(model, glm::radians(35.0f), glm::vec3(0.0f, 1.0f, 0.0f));
             }
             model = glm::scale(model, glm::vec3(0.5f));
-            ourShader.setMat4("model", model);
-            starDestroyer.Draw(ourShader);
+            sceneLight.setMat4("model", model);
+            starDestroyer.Draw(sceneLight);
+        }
+
+        // render x wing star fighter
+        for (unsigned int i = 0 ; i < 3 ; i++) {
+            model = glm::mat4(1.0f);
+            model = glm::translate(model, xWingPositions[i]);
+            model = glm::rotate(model, glm::radians(15.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+            model = glm::scale(model, glm::vec3(0.35f));
+            sceneLight.setMat4("model", model);
+            xWingStarFighter.Draw(sceneLight);
         }
 
         // skybox setup
@@ -333,6 +432,9 @@ int main() {
         glfwPollEvents();
     }
 
+    glDeleteVertexArrays(1, &swcubeVAO);
+    glDeleteVertexArrays(1, &skyboxVAO);
+    glDeleteBuffers(1, &swcubeVBO);
     glDeleteBuffers(1, &skyboxVBO);
 
     // glfw: terminate, clearing all previously allocated GLFW resources.
@@ -355,6 +457,19 @@ void processInput(GLFWwindow *window) {
         camera.ProcessKeyboard(LEFT, deltaTime);
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
         camera.ProcessKeyboard(RIGHT, deltaTime);
+
+    if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS)
+        cubeMoveLR += 0.1f;
+    if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS)
+        cubeMoveLR -= 0.1f;
+    if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)
+        cubeMoveUD += 0.1f;
+    if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)
+        cubeMoveUD -= 0.1f;
+    if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
+        cubeRotate += 1.0f;
+    if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS)
+        cubeRotate -= 1.0f;
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes
@@ -415,6 +530,43 @@ unsigned int loadCubemap(vector<std::string> faces)
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
+    return textureID;
+}
+
+unsigned int loadTexture(char const * path)
+{
+    unsigned int textureID;
+    glGenTextures(1, &textureID);
+
+    int width, height, nrComponents;
+    unsigned char *data = stbi_load(path, &width, &height, &nrComponents, 0);
+    if (data)
+    {
+        GLenum format = GL_RED;
+        if (nrComponents == 1)
+            format = GL_RED;
+        else if (nrComponents == 3)
+            format = GL_RGB;
+        else if (nrComponents == 4)
+            format = GL_RGBA;
+
+        glBindTexture(GL_TEXTURE_2D, textureID);
+        glTexImage2D(GL_TEXTURE_2D, 0, (GLint)format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+        glGenerateMipmap(GL_TEXTURE_2D);
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+        stbi_image_free(data);
+    }
+    else
+    {
+        std::cout << "Texture failed to load at path: " << path << std::endl;
+        stbi_image_free(data);
+    }
 
     return textureID;
 }
