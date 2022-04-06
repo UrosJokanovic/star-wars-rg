@@ -31,7 +31,7 @@ const unsigned int SCR_WIDTH = 1920;
 const unsigned int SCR_HEIGHT = 1080;
 
 // camera
-Camera camera(glm::vec3(9.0f, 2.0f, 9.0f));
+Camera camera(glm::vec3(0.0f, 0.0f, 12.0f));
 float lastX = SCR_WIDTH / 2.0f;
 float lastY = SCR_HEIGHT / 2.0f;
 bool firstMouse = true;
@@ -65,7 +65,7 @@ int main() {
 
     // glfw window creation
     // --------------------
-    GLFWwindow *window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "LearnOpenGL", NULL, NULL);
+    GLFWwindow *window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Star Wars: Episode V - The Empire Strikes Back", NULL, NULL);
     if (window == NULL) {
         std::cout << "Failed to create GLFW window" << std::endl;
         glfwTerminate();
@@ -143,6 +143,26 @@ int main() {
             1.0f, -1.0f,  1.0f
     };
 
+    glm::vec3 bomberPositions[] = {
+            glm::vec3( 0.0f,  0.0f,  12.0f),
+            glm::vec3( 3.0f,  0.0f, 6.0f),
+            glm::vec3(0.0f, 3.0f, 0.0f),
+            glm::vec3(-3.0f, 0.0f, 5.0f),
+            glm::vec3( 0.0f, -3.0f, 8.0f),
+            glm::vec3(3.0f,  3.0f, 10.0f),
+            glm::vec3( -3.0f, -3.0f, 9.0f),
+            glm::vec3(3.0f,  -3.0f, 15.0f),
+            glm::vec3( -3.0f, 3.0f, 14.0f),
+            glm::vec3(1.5f, 0.0f,20.0f),
+            glm::vec3(-1.5f, 0.0f,22.0f)
+    };
+
+    glm::vec3 destroyerPositions[] = {
+            glm::vec3(0.0f, 30.0f, -120.0f),
+            glm::vec3(180.0f, 0.0f, -450.0f),
+            glm::vec3(-250.0f, -10.0f, -400.0f),
+    };
+
     unsigned int skyboxVAO, skyboxVBO;
     glGenVertexArrays(1, &skyboxVAO);
     glGenBuffers(1, &skyboxVBO);
@@ -154,6 +174,7 @@ int main() {
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
 
+    //skybox textures
     vector<std::string> spaceSkybox = {
             FileSystem::getPath("resources/textures/space_skybox/space_right.png"),
             FileSystem::getPath("resources/textures/space_skybox/space_left.png"),
@@ -169,8 +190,20 @@ int main() {
 
     // load models
     // -----------
-    Model ourModel("resources/objects/backpack/backpack.obj");
-    ourModel.SetShaderTextureNamePrefix("material.");
+    Model bomber("resources/objects/sw_bomber/tieBomber.obj");
+    bomber.SetShaderTextureNamePrefix("material.");
+
+    Model milleniumFalcon("resources/objects/sw_millenium_falcon/Halcon_Milenario.obj");
+    milleniumFalcon.SetShaderTextureNamePrefix("material.");
+
+    Model tieFighter("resources/objects/sw_fighter/tie_fighter.obj");
+    tieFighter.SetShaderTextureNamePrefix("material.");
+
+    Model deathStar("resources/objects/sw_death_star/DeathStar.obj");
+    deathStar.SetShaderTextureNamePrefix("material.");
+
+    Model starDestroyer("resources/objects/sw_star_destroyer/star_destroyer.obj");
+    starDestroyer.SetShaderTextureNamePrefix("material.");
 
     PointLight pointLight;
     pointLight.position = glm::vec3(4.0f, 4.0, 0.0);
@@ -193,7 +226,7 @@ int main() {
         // per-frame time logic
         // --------------------
         float currentFrame = glfwGetTime();
-        deltaTime = currentFrame - lastFrame;
+        deltaTime = currentFrame - lastFrame + 0.2f;
         lastFrame = currentFrame;
 
         // input
@@ -220,19 +253,64 @@ int main() {
         ourShader.setFloat("material.shininess", 32.0f);
         // view/projection transformations
         glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom),
-                                                (float) SCR_WIDTH / (float) SCR_HEIGHT, 0.1f, 100.0f);
+                                                (float) SCR_WIDTH / (float) SCR_HEIGHT, 0.1f, 1500.0f);
         glm::mat4 view = camera.GetViewMatrix();
         ourShader.setMat4("projection", projection);
         ourShader.setMat4("view", view);
 
-        // render the loaded model
+        // render imperial bombers
+        for (unsigned int i = 0 ; i < 11 ; i++) {
+            glm::mat4 model = glm::mat4(1.0f);
+            model = glm::translate(model,
+                                   bomberPositions[i]); // translate it down so it's at the center of the scene
+            model = glm::rotate(model, glm::radians(25.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+            model = glm::rotate(model, (float) glfwGetTime(), glm::vec3(0.0f, 0.0f, 1.0f));
+            model = glm::scale(model, glm::vec3(0.5f));    // it's a bit too big for our scene, so scale it down
+            ourShader.setMat4("model", model);
+            bomber.Draw(ourShader);
+        }
+
+        // render millenium falcon
         glm::mat4 model = glm::mat4(1.0f);
-        model = glm::translate(model,
-                               glm::vec3(0.0f)); // translate it down so it's at the center of the scene
-        model = glm::rotate(model, (float)glfwGetTime(), glm::vec3(1.0f));
-        model = glm::scale(model, glm::vec3(1.0f));    // it's a bit too big for our scene, so scale it down
+        model = glm::translate(model, glm::vec3(0.0f, -20.0f, 140.0f));
+        model = glm::rotate(model, (float)sin(glfwGetTime()), glm::vec3(0.0f, 0.0f, 0.5f));
+        model = glm::rotate(model, glm::radians(25.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+        model = glm::scale(model, glm::vec3(0.025f));
         ourShader.setMat4("model", model);
-        ourModel.Draw(ourShader);
+        milleniumFalcon.Draw(ourShader);
+
+        // render imperial fighter
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, glm::vec3(0.0f, 0.0f, 5.5f));
+        model = glm::rotate(model, glm::radians(-90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        model = glm::rotate(model, glm::radians(-25.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+        model = glm::scale(model, glm::vec3(0.05f));
+        ourShader.setMat4("model", model);
+        tieFighter.Draw(ourShader);
+
+        // render death star
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, glm::vec3(0.0f, 0.0f, -1300.0f));
+        model = glm::rotate(model, (float)glfwGetTime()/20, glm::vec3(0.0f, 1.0f, 0.0f));
+        model = glm::scale(model, glm::vec3(1.4f));
+        ourShader.setMat4("model", model);
+        deathStar.Draw(ourShader);
+
+        // render star destroyer
+        for (unsigned int i = 0 ; i < 3 ; i++) {
+            model = glm::mat4(1.0f);
+            model = glm::translate(model, destroyerPositions[i]);
+            model = glm::rotate(model, glm::radians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+            if (i == 1) {
+                model = glm::rotate(model, glm::radians(-25.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+            }
+            if (i == 2) {
+                model = glm::rotate(model, glm::radians(35.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+            }
+            model = glm::scale(model, glm::vec3(0.5f));
+            ourShader.setMat4("model", model);
+            starDestroyer.Draw(ourShader);
+        }
 
         // skybox setup
         glDepthFunc(GL_LEQUAL);  // change depth function so depth test passes when values are equal to depth buffer's content

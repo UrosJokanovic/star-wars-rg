@@ -1,0 +1,25 @@
+newmtl bluethruster
+Ns 10.0000
+Ni 1.5000
+d 1.0000
+Tf 1.0000 1.0000 1.0000
+illum 2
+Ka 0.5882 0.5882 0.5882
+Kd 0.5882 0.5882 0.5882
+Ks 0.2250 0.2250 0.2250
+Ke 0.0000 0.0000 0.0000
+map_Ka textures/bluethruster.png
+map_Kd textures/bluethruster.png
+
+newmtl Imp_Venator_Destroyer
+Ns 10.0000
+Ni 1.5000
+d 1.0000
+Tf 1.0000 1.0000 1.0000
+illum 2
+Ka 0.5882 0.5882 0.5882
+Kd 0.5882 0.5882 0.5882
+Ks 0.2250 0.2250 0.2250
+Ke 0.0000 0.0000 0.0000
+map_Ka textures/Imp_Venator_Destroyer.png
+map_Kd textures/Imp_Venator_Destroyer.png
