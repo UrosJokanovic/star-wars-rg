@@ -23,6 +23,11 @@ unsigned int loadTexture(char const * path);
 // settings
 const unsigned int SCR_WIDTH = 1920;
 const unsigned int SCR_HEIGHT = 1080;
+bool blinn = false;
+bool blinnKeyPressed = false;
+bool flashLight = false;
+bool flashLightKeyPressed = false;
+bool faceCullingKeyPressed = false;
 
 // camera
 Camera camera(glm::vec3(0.0f, 0.0f, 30.0f));
@@ -52,7 +57,7 @@ int main() {
 
     // glfw window creation
     // --------------------
-    GLFWwindow *window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Star Wars: Episode V - The Empire Strikes Back", NULL, NULL);
+    GLFWwindow *window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Star Wars", NULL, NULL);
     if (window == NULL) {
         std::cout << "Failed to create GLFW window" << std::endl;
         glfwTerminate();
@@ -80,10 +85,15 @@ int main() {
     // -----------------------------
     glEnable(GL_DEPTH_TEST);
 
+    // Face culling
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_BACK);
+
     // build and compile shaders
     // -------------------------
-    Shader sceneLight("resources/shaders/scene_light.vs", "resources/shaders/scene_light.fs");
     Shader skyboxShader("resources/shaders/skybox.vs", "resources/shaders/skybox.fs");
+    Shader sceneLight("resources/shaders/scene_light.vs", "resources/shaders/scene_light.fs");
+    Shader swCube("resources/shaders/cube_discard.vs", "resources/shaders/cube_discard.fs");
 
     // star wars cube coordinates
     float vertices[] = {
@@ -178,7 +188,7 @@ int main() {
     };
 
     // model positions
-
+    // imperial bomber positions
     glm::vec3 bomberPositions[] = {
             glm::vec3( 0.0f,  0.0f,  12.0f),
             glm::vec3( 3.0f,  0.0f, 6.0f),
@@ -192,13 +202,14 @@ int main() {
             glm::vec3(1.5f, 0.0f,20.0f),
             glm::vec3(-1.5f, 0.0f,22.0f)
     };
-
+    // imperial destroyer positions
     glm::vec3 destroyerPositions[] = {
-            glm::vec3(0.0f, 30.0f, -120.0f),
+            glm::vec3(0.0f, 30.0f, -140.0f),
             glm::vec3(180.0f, 0.0f, -450.0f),
             glm::vec3(-250.0f, -10.0f, -400.0f),
     };
 
+    // imperial fighter positions
     glm::vec3 fighterPositions[] = {
             glm::vec3(0.0f, 0.0f, 5.5f),
             glm::vec3(5.0f, 5.0f, 8.0f),
@@ -207,6 +218,7 @@ int main() {
             glm::vec3(0.0f, -3.0f, -3.0f)
     };
 
+    // rebel x-wing starfighter
     glm::vec3 xWingPositions[] = {
             glm::vec3(25.0f, -20.0f, 140.0f),
             glm::vec3(-25.0f, -15.0f, 130.f),
@@ -303,17 +315,18 @@ int main() {
         // don't forget to enable shader before setting uniforms
         sceneLight.use();
         sceneLight.setVec3("viewPos", camera.Position);
-        sceneLight.setFloat("material.shininess", 32.0f);
+        sceneLight.setFloat("material.shininess", 16.0f);
+        sceneLight.setInt("blinn", blinn);
+        sceneLight.setInt("flashLight", flashLight);
 
-        // directional light setup
-        sceneLight.setVec3("dirLight.direction", glm::vec3(0.0f, 150.0f, -50.0f));
-        sceneLight.setVec3("dirLight.ambient", glm::vec3(0.5f, 0.5f, 0.5f));
-        sceneLight.setVec3("dirLight.diffuse", glm::vec3(0.6f, 0.6f, 0.6f));
+        // directional light
+        sceneLight.setVec3("dirLight.direction", glm::vec3(100.0f, -250.0f, -50.0f));
+        sceneLight.setVec3("dirLight.ambient", glm::vec3(0.1f, 0.1f, 0.1f));
+        sceneLight.setVec3("dirLight.diffuse", glm::vec3(0.5f, 0.5f, 0.5f));
         sceneLight.setVec3("dirLight.specular", glm::vec3(1.0f, 1.0f, 1.0f));
         
-        // point light setup
-//        pointLight.position = glm::vec3(4.0 * cos(currentFrame), 4.0f, 4.0 * sin(currentFrame));
-        sceneLight.setVec3("pointLight.position", glm::vec3(0.0f, -10.0f, -20.0f));
+        // point light
+        sceneLight.setVec3("pointLight.position", glm::vec3(0.0f, 0.0f, 0.0f));
         sceneLight.setVec3("pointLight.ambient", glm::vec3(0.5, 0.5, 0.5));
         sceneLight.setVec3("pointLight.diffuse", glm::vec3(0.6, 0.6, 0.6));
         sceneLight.setVec3("pointLight.specular", glm::vec3(1.0, 1.0, 1.0));
@@ -321,9 +334,21 @@ int main() {
         sceneLight.setFloat("pointLight.linear", 0.09f);
         sceneLight.setFloat("pointLight.quadratic", 0.032f);
         
+        // spot light
+        sceneLight.setVec3("spotLight.position", camera.Position);
+        sceneLight.setVec3("spotLight.direction", camera.Front);
+        sceneLight.setVec3("spotLight.ambient", 0.0f, 0.0f, 0.0f);
+        sceneLight.setVec3("spotLight.diffuse", 0.7f, 0.7f, 0.7f);
+        sceneLight.setVec3("spotLight.specular", 1.0f, 1.0f, 1.0f);
+        sceneLight.setFloat("spotLight.constant", 1.0f);
+        sceneLight.setFloat("spotLight.linear", 0.05);
+        sceneLight.setFloat("spotLight.quadratic", 0.012);
+        sceneLight.setFloat("spotLight.cutOff", glm::cos(glm::radians(10.5f)));
+        sceneLight.setFloat("spotLight.outerCutOff", glm::cos(glm::radians(13.0f)));
+        
         // view/projection transformations
         glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom),
-                                                (float) SCR_WIDTH / (float) SCR_HEIGHT, 0.1f, 1500.0f);
+                                                (float) SCR_WIDTH / (float) SCR_HEIGHT, 0.1f, 1300.0f);
         glm::mat4 view = camera.GetViewMatrix();
         sceneLight.setMat4("projection", projection);
         sceneLight.setMat4("view", view);
@@ -331,28 +356,14 @@ int main() {
         glm::mat4 model = glm::mat4(1.0f);
         sceneLight.setMat4("model", model);
 
-        // star wars cube
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, dartVader);
-
-        glBindVertexArray(swcubeVAO);
-        model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(0.0f + cubeMoveLR, 0.0f + cubeMoveUD, -15.0f));
-        model = glm::rotate(model, glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-        model = glm::rotate(model, glm::radians(cubeRotate), glm::vec3(0.0f, 0.0f, 1.0f));
-        model = glm::scale(model, glm::vec3(2.0f));
-        sceneLight.setMat4("model", model);
-
-        glDrawArrays(GL_TRIANGLES, 0, 36);
-
         // render imperial bombers
         for (unsigned int i = 0 ; i < 11 ; i++) {
             model = glm::mat4(1.0f);
             model = glm::translate(model,
-                                   bomberPositions[i]); // translate it down so it's at the center of the scene
+                                   bomberPositions[i]);
             model = glm::rotate(model, glm::radians(25.0f), glm::vec3(1.0f, 0.0f, 0.0f));
             model = glm::rotate(model, (float) glfwGetTime(), glm::vec3(0.0f, 0.0f, 1.0f));
-            model = glm::scale(model, glm::vec3(0.85f));    // it's a bit too big for our scene, so scale it down
+            model = glm::scale(model, glm::vec3(0.85f));
             sceneLight.setMat4("model", model);
             bomber.Draw(sceneLight);
         }
@@ -366,6 +377,7 @@ int main() {
         sceneLight.setMat4("model", model);
         milleniumFalcon.Draw(sceneLight);
 
+        glDisable(GL_CULL_FACE);
         // render imperial fighter
         for (unsigned int i = 0 ; i < 5 ; i++) {
             model = glm::mat4(1.0f);
@@ -376,11 +388,12 @@ int main() {
             sceneLight.setMat4("model", model);
             tieFighter.Draw(sceneLight);
         }
+        glEnable(GL_CULL_FACE);
 
         // render death star
         model = glm::mat4(1.0f);
         model = glm::translate(model, glm::vec3(0.0f, 0.0f, -1300.0f));
-        model = glm::rotate(model, (float)glfwGetTime()/20, glm::vec3(0.0f, 1.0f, 0.0f));
+        model = glm::rotate(model, (float)glfwGetTime()/50, glm::vec3(0.0f, 1.0f, 0.0f));
         model = glm::scale(model, glm::vec3(1.4f));
         sceneLight.setMat4("model", model);
         deathStar.Draw(sceneLight);
@@ -396,12 +409,14 @@ int main() {
             if (i == 2) {
                 model = glm::rotate(model, glm::radians(35.0f), glm::vec3(0.0f, 1.0f, 0.0f));
             }
-            model = glm::scale(model, glm::vec3(0.5f));
+            model = glm::scale(model, glm::vec3(0.6f));
             sceneLight.setMat4("model", model);
             starDestroyer.Draw(sceneLight);
         }
 
         // render x wing star fighter
+        // x wing star fighter objekti su kompleksniji i kada se ukljuce zahtevaju vise vremena pokretanje tj
+        // iskace prozor (You may choose to wait a short while to continue or force the application to quit)
         for (unsigned int i = 0 ; i < 3 ; i++) {
             model = glm::mat4(1.0f);
             model = glm::translate(model, xWingPositions[i]);
@@ -410,6 +425,26 @@ int main() {
             sceneLight.setMat4("model", model);
             xWingStarFighter.Draw(sceneLight);
         }
+
+        // star wars cube
+        glDisable(GL_CULL_FACE);
+        glm::mat4 cube = glm::mat4(1.0f);
+        swCube.use();
+        swCube.setMat4("projection", projection);
+        swCube.setMat4("view", view);
+        swCube.setMat4("model", cube);
+        glBindVertexArray(swcubeVAO);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, dartVader);
+        cube = glm::mat4(1.0f);
+        cube = glm::translate(cube, glm::vec3(0.0f + cubeMoveLR, 0.0f + cubeMoveUD, -15.0f));
+        cube = glm::rotate(cube, glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+        cube = glm::rotate(cube, glm::radians(cubeRotate), glm::vec3(0.0f, 0.0f, 1.0f));
+        cube = glm::scale(cube, glm::vec3(2.0f));
+        swCube.setMat4("model", cube);
+
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+        glEnable(GL_CULL_FACE);
 
         // skybox setup
         glDepthFunc(GL_LEQUAL);  // change depth function so depth test passes when values are equal to depth buffer's content
@@ -470,6 +505,28 @@ void processInput(GLFWwindow *window) {
         cubeRotate += 1.0f;
     if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS)
         cubeRotate -= 1.0f;
+
+    // Blinn-Phong light key
+    if (glfwGetKey(window, GLFW_KEY_B) == GLFW_PRESS && !blinnKeyPressed)
+    {
+        blinn = !blinn;
+        blinnKeyPressed = true;
+    }
+    if (glfwGetKey(window, GLFW_KEY_B) == GLFW_RELEASE)
+    {
+        blinnKeyPressed = false;
+    }
+
+    // Flash light key
+    if (glfwGetKey(window, GLFW_KEY_F) == GLFW_PRESS && !flashLightKeyPressed)
+    {
+        flashLight = !flashLight;
+        flashLightKeyPressed = true;
+    }
+    if (glfwGetKey(window, GLFW_KEY_F) == GLFW_RELEASE)
+    {
+        flashLightKeyPressed = false;
+    }
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes
