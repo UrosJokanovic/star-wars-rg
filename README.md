@@ -10,7 +10,7 @@ Projekat iz racunarske grafike, koriscen skelet za projekat sa linka `https://gi
                                           2. <kbd>A</kbd> - pomeranje levo
                                           3. <kbd>S</kbd> - pomeranje unazad
                                           4. <kbd>D</kbd> - pomeranje desno
-6. Rotacija kocke u kojoj se kamera nalazei: 1. <kbd>Q</kbd> - rotacija ulevo
+6. Rotacija kocke u kojoj se kamera nalazi: 1. <kbd>Q</kbd> - rotacija ulevo
                                              2. <kbd>R</kbd> - rotacija udesno
 7. Ukljucivanje blin-phongovog modela svetlosti pritiskom na <kbd>B</kbd>
 8. Ukljucivanje baterijske lampe (flashlight) pritiskom na <kbd>F</kbd>
@@ -28,3 +28,6 @@ Modeli su preuzeti sa stranica https://sketchfab.com/3d-models/ i https://www.ca
 ### TEME A I B
 Iz oblasti A u projektu se nalazi tema CUBEMAPS
 Iz oblasti B nijedan tema se ne nalazi u projektu
+
+### Link ka Youtube snimku
+`https://youtu.be/lp-fOzv4jpM`
