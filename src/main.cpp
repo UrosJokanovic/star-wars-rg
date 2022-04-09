@@ -326,7 +326,7 @@ int main() {
         sceneLight.setVec3("dirLight.specular", glm::vec3(1.0f, 1.0f, 1.0f));
         
         // point light
-        sceneLight.setVec3("pointLight.position", glm::vec3(0.0f, 0.0f, 0.0f));
+        sceneLight.setVec3("pointLight.position", glm::vec3(0.0f, 0.0f, 10.0f));
         sceneLight.setVec3("pointLight.ambient", glm::vec3(0.5, 0.5, 0.5));
         sceneLight.setVec3("pointLight.diffuse", glm::vec3(0.6, 0.6, 0.6));
         sceneLight.setVec3("pointLight.specular", glm::vec3(1.0, 1.0, 1.0));
@@ -437,7 +437,8 @@ int main() {
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, dartVader);
         cube = glm::mat4(1.0f);
-        cube = glm::translate(cube, glm::vec3(0.0f + cubeMoveLR, 0.0f + cubeMoveUD, -15.0f));
+//        cube = glm::translate(cube, glm::vec3(0.0f + cubeMoveLR, 0.0f + cubeMoveUD, -15.0f));
+        cube = glm::translate(cube, camera.Position + glm::vec3(0.0f));
         cube = glm::rotate(cube, glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
         cube = glm::rotate(cube, glm::radians(cubeRotate), glm::vec3(0.0f, 0.0f, 1.0f));
         cube = glm::scale(cube, glm::vec3(2.0f));
