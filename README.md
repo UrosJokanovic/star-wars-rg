@@ -30,4 +30,4 @@ Iz oblasti A u projektu se nalazi tema CUBEMAPS
 Iz oblasti B nijedan tema se ne nalazi u projektu
 
 ### Link ka Youtube snimku
-`https://youtu.be/lp-fOzv4jpM`
+https://youtu.be/lp-fOzv4jpM
